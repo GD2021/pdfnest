@@ -28,8 +28,8 @@
   2. 比对是否有新提交，若有则自动合并到 `GD2021/pdfnest:main` 并推送到仓库；
   3. 执行 `npx wrangler deploy` 重新发布至 Cloudflare Workers。
 - **仓库 Secrets 配置**：
-  - `CLOUDFLARE_ACCOUNT_ID`：`fc6f79e77dca61be461e2dedb82244f5`（已自动配置）
-  - `CLOUDFLARE_API_TOKEN`：待配置（与 Edgechat 仓库配置相同的 Cloudflare API Token 即可启用 Actions 云端自动部署）
+  - `CLOUDFLARE_ACCOUNT_ID`：`fc6f79e77dca61be461e2dedb82244f5`（已配置）
+  - `CLOUDFLARE_API_TOKEN`：已配置（支持全自动云端构建与部署）
 
 ---
 
