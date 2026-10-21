@@ -1,0 +1,15 @@
+.git
+.git/**
+.github
+.github/**
+.wrangler
+.wrangler/**
+node_modules
+node_modules/**
+.DS_Store
+wrangler.toml
+wrangler.jsonc
+.assetsignore
+README.md
+SETUP-MONETIZATION.md
+CNAME

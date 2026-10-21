@@ -1,0 +1,97 @@
+name: Sync Upstream & Deploy
+
+on:
+  schedule:
+    # 每天北京时间 04:00 (UTC 20:00) 自动检查官方上游更新并构建部署
+    - cron: "0 20 * * *"
+  workflow_dispatch:
+    inputs:
+      force_deploy:
+        description: "强制执行重新部署（无论是否有上游更新）"
+        type: boolean
+        default: true
+  push:
+    branches:
+      - main
+    paths:
+      - "**"
+      - "!README.md"
+      - "!DEPLOY_INFO.md"
+
+concurrency:
+  group: sync-and-deploy
+  cancel-in-progress: false
+
+jobs:
+  sync-and-deploy:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    permissions:
+      contents: write
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+          token: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Setup Git user
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+
+      - name: Check and merge upstream updates
+        id: sync
+        run: |
+          git remote add upstream https://github.com/OmerMirza9/pdfnest.git || true
+          git fetch upstream main
+
+          LOCAL_REV=$(git rev-parse HEAD)
+          UPSTREAM_REV=$(git rev-parse upstream/main)
+          MERGE_BASE=$(git merge-base HEAD upstream/main)
+
+          echo "Current local revision: $LOCAL_REV"
+          echo "Current upstream revision: $UPSTREAM_REV"
+          echo "Merge base: $MERGE_BASE"
+
+          if [ "$UPSTREAM_REV" != "$MERGE_BASE" ]; then
+            echo "Upstream has new commits. Merging upstream/main into main..."
+            git merge upstream/main --no-edit -m "chore: sync upstream OmerMirza9/pdfnest ($(date -u +'%Y-%m-%d %H:%M:%S UTC'))"
+            git push origin main
+            echo "has_changes=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "Repository is already up to date with upstream."
+            echo "has_changes=false" >> "$GITHUB_OUTPUT"
+          fi
+
+      - name: Determine if deployment is needed
+        id: check_deploy
+        run: |
+          if [ "${{ github.event_name }}" = "push" ]; then
+            echo "deploy=true" >> "$GITHUB_OUTPUT"
+          elif [ "${{ github.event_name }}" = "workflow_dispatch" ]; then
+            echo "deploy=true" >> "$GITHUB_OUTPUT"
+          elif [ "${{ steps.sync.outputs.has_changes }}" = "true" ]; then
+            echo "deploy=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "No upstream changes; skipping deploy."
+            echo "deploy=false" >> "$GITHUB_OUTPUT"
+          fi
+
+      - name: Setup Node.js
+        if: steps.check_deploy.outputs.deploy == 'true'
+        uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+
+      - name: Deploy to Cloudflare Workers
+        if: steps.check_deploy.outputs.deploy == 'true'
+        env:
+          CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+        run: |
+          if [ -z "$CLOUDFLARE_API_TOKEN" ]; then
+            echo "::error::CLOUDFLARE_API_TOKEN is not configured in GitHub Secrets. Please add it to enable automatic cloud deployment."
+            exit 1
+          fi
+          npx wrangler deploy

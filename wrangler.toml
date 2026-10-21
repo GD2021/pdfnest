@@ -1,0 +1,10 @@
+name = "pdfnest"
+compatibility_date = "2026-10-21"
+
+[assets]
+directory = "."
+not_found_handling = "404-page"
+
+[[routes]]
+pattern = "pdf.files.cloudns.org"
+custom_domain = true
