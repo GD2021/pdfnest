@@ -178,13 +178,17 @@
       var saved = originalSize - bytes.length;
       var pct = originalSize ? Math.round((saved / originalSize) * 100) : 0;
       var positive = saved > 0;
+      // Rebuilding pages as images can make an already-efficient (text) PDF larger and
+      // unsearchable — in that case hand back the untouched original instead.
+      var keep = positive ? bytes : currentBytes;
       PN.showResult(result,
         '<div class="result__check"><svg width="34" height="34" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M20 6L9 17l-5-5"/></svg></div>' +
-        '<h3>' + (positive ? "Compressed by " + pct + "%" : "Compression complete") + '</h3>' +
-        '<p>' + PN.formatBytes(originalSize) + ' → <strong>' + PN.formatBytes(bytes.length) + '</strong>' +
-        (positive ? '' : ' (this PDF was already well optimised)') + '</p>' +
-        '<button class="btn btn--accent btn--lg" id="dl">Download compressed PDF</button>');
-      document.getElementById("dl").onclick = function () { PN.downloadBytes(bytes, "compressed-pdfnest.pdf", "application/pdf"); };
+        '<h3>' + (positive ? "Compressed by " + pct + "%" : "This PDF is already well optimised") + '</h3>' +
+        (positive
+          ? '<p>' + PN.formatBytes(originalSize) + ' → <strong>' + PN.formatBytes(bytes.length) + '</strong></p>'
+          : '<p>Compressing it would make it larger (' + PN.formatBytes(originalSize) + ' → ' + PN.formatBytes(bytes.length) + '), so your original file is kept as it is — text stays selectable. To make it smaller, remove pages you don’t need or split it.</p>') +
+        '<button class="btn btn--accent btn--lg" id="dl">' + (positive ? "Download compressed PDF" : "Download original PDF") + '</button>');
+      document.getElementById("dl").onclick = function () { PN.downloadBytes(keep, positive ? "compressed-pdfnest.pdf" : "original-pdfnest.pdf", "application/pdf"); };
       setTimeout(function(){ PN.progress(prog, bar, null); }, 800);
     } catch (e) {
       console.error(e); PN.status(statusEl, "Something went wrong compressing that PDF.", true); PN.progress(prog, bar, null);
